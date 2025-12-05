@@ -2,18 +2,19 @@
 // 📌 TAPAI BOT - READY TO USE
 // ===============================
 
+// ✅ Correct express import
 const { Bot } = require("grammy");
 const express = require("express");
 
-// Load BOT TOKEN
-const bot =
+// ✅ Load BOT TOKEN daga environment variable
+const bot = new Bot(process.env.BOT_TOKEN);
 
 // ===============================
 // 🔥 START COMMAND
 // ===============================
 bot.command("start", async ctx => {
     await ctx.reply(
-        "👋 *Welcome to TapAI Bot!*\n\n" +
+        "👋 *Barka da zuwa TapAI Bot!*\n\n" +
         "Tap /menu don ganin cikakken menu.",
         { parse_mode: "Markdown" }
     );
