@@ -101,3 +101,122 @@ app.get("/", (req, res) => {
 app.listen(3000, () => {
     console.log("🌍 Web server running on port 3000");
 });
+const express = require("express");
+const { Telegraf } = require("telegraf");
+const fs = require("fs");
+
+const app = express();
+app.use(express.json());
+
+// ====== BOT TOKEN ======
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const bot = new Telegraf(BOT_TOKEN);
+
+// ====== FAKE DATABASE (JSON FILE) ======
+const DB_FILE = "db.json";
+
+function loadDB() {
+  if (!fs.existsSync(DB_FILE)) return {};
+  return JSON.parse(fs.readFileSync(DB_FILE));
+}
+
+function saveDB(data) {
+  fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+}
+
+let db = loadDB();
+
+function getUser(id) {
+  if (!db[id]) {
+    db[id] = { taps: 0, wallet: null, username: null };
+    saveDB(db);
+  }
+  return db[id];
+}
+
+// ====== COMMANDS ======
+
+bot.start((ctx) => {
+  const user = ctx.from;
+  getUser(user.id);
+
+  ctx.reply(
+    `👋 *Welcome ${user.first_name}!*  
+Welcome to *TeleAI Tap Bot* 🚀
+
+Use these commands:
+👉 /tap – tap +1  
+👉 /leaderboard – top users  
+👉 /wallet – set TON wallet  
+👉 /profile – view your profile  
+
+Enjoy tapping! 😁`,
+    { parse_mode: "Markdown" }
+  );
+});
+
+// TAP COMMAND
+bot.command("tap", (ctx) => {
+  const user = getUser(ctx.from.id);
+  user.taps += 1;
+  saveDB(db);
+
+  ctx.reply(`🖐️ *Tap counted!*  
+Taps: *${user.taps}*`, { parse_mode: "Markdown" });
+});
+
+// LEADERBOARD
+bot.command("leaderboard", (ctx) => {
+  const sorted = Object.entries(db)
+    .map(([id, d]) => ({ id, taps: d.taps }))
+    .sort((a, b) => b.taps - a.taps)
+    .slice(0, 10);
+
+  let msg = "🏆 *Top 10 Tappers*\n\n";
+
+  sorted.forEach((u, i) => {
+    msg += `${i + 1}. User ${u.id}: *${u.taps} taps*\n`;
+  });
+
+  ctx.reply(msg, { parse_mode: "Markdown" });
+});
+
+// WALLET
+bot.command("wallet", (ctx) => {
+  const parts = ctx.message.text.split(" ");
+
+  if (parts.length === 1) {
+    return ctx.reply("💳 *Usage:* /wallet YOUR_TON_WALLET");
+  }
+
+  const wallet = parts[1];
+  const user = getUser(ctx.from.id);
+  user.wallet = wallet;
+  saveDB(db);
+
+  ctx.reply(`✅ Wallet saved!\n📌 ${wallet}`);
+});
+
+// PROFILE
+bot.command("profile", (ctx) => {
+  const user = getUser(ctx.from.id);
+
+  ctx.reply(
+    `👤 *Your Profile*\n\n` +
+      `🆔 ID: ${ctx.from.id}\n` +
+      `🖐️ Taps: *${user.taps}*\n` +
+      `💳 Wallet: ${user.wallet ? user.wallet : "Not set"}\n`,
+    { parse_mode: "Markdown" }
+  );
+});
+
+// ====== EXPRESS TEST ROUTE ======
+app.get("/", (req, res) => {
+  res.send("TeleAI Bot is running 🚀");
+});
+
+// ====== START APP ======
+bot.launch();
+app.listen(3000, () => {
+  console.log("Bot + Server running on port 3000");
+});
