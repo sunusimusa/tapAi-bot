@@ -3,7 +3,7 @@
 // ===============================
 
 const { Bot } = require("grammy");
-const = require("express");
+const express = require("express");
 
 // Load BOT TOKEN
 const bot = new Bot(process.env.BOT_TOKEN);
