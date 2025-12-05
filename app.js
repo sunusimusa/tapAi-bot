@@ -220,3 +220,128 @@ bot.launch();
 app.listen(3000, () => {
   console.log("Bot + Server running on port 3000");
 });
+// ---- TAP SYSTEM (JSON storage) ----
+const fs = require("fs");
+const path = require("path");
+const USERS_FILE = path.join(__dirname, "users.json");
+
+const ENERGY_MAX = Number(process.env.ENERGY_MAX || 100);
+const START_ENERGY = Number(process.env.START_ENERGY || 20);
+const ENERGY_RESTORE_RATE_SECONDS = Number(process.env.ENERGY_RESTORE_RATE_SECONDS || 60);
+const SAVE_DEBOUNCE_MS = Number(process.env.SAVE_DEBOUNCE_MS || 1000);
+
+let users = {};
+let saveTimer = null;
+
+function loadUsers() {
+  try {
+    if (!fs.existsSync(USERS_FILE)) {
+      fs.writeFileSync(USERS_FILE, JSON.stringify({}, null, 2), "utf8");
+    }
+    const raw = fs.readFileSync(USERS_FILE, "utf8");
+    users = raw ? JSON.parse(raw) : {};
+  } catch (err) {
+    console.error("Failed to load users.json:", err);
+    users = {};
+  }
+}
+
+function scheduleSave() {
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    try {
+      fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), "utf8");
+    } catch (err) {
+      console.error("Failed to save users.json:", err);
+    } finally {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+  }, SAVE_DEBOUNCE_MS);
+}
+
+function getUser(id, name = "") {
+  if (!users[id]) {
+    users[id] = {
+      id,
+      name,
+      coins: 0,
+      xp: 0,
+      energy: START_ENERGY,
+      lastTap: 0
+    };
+    scheduleSave();
+  }
+  return users[id];
+}
+
+// Load at startup
+loadUsers();
+
+// TAP command
+// Assumes `bot` variable exists (Telegraf or grammY). If your bot variable name is different, adapt.
+bot.command("tap", async (ctx) => {
+  try {
+    const tgId = ctx.from && (ctx.from.id || ctx.from.user_id) ? (ctx.from.id || ctx.from.user_id) : String(ctx.chat && ctx.chat.id);
+    const username = ctx.from && (ctx.from.username || `${ctx.from.first_name || ""} ${ctx.from.last_name || ""}`) || "user";
+    if (!tgId) return ctx.reply("Ba zan iya gane ID dinka ba.");
+
+    const user = getUser(String(tgId), username);
+
+    if (user.energy <= 0) {
+      return ctx.reply("⚠️ Babu energy — kana bukatar ka jira energy ya dawo kafin ka iya tapping.");
+    }
+
+    // Basic anti-spam: limit taps to 1 per second (adjustable)
+    const now = Date.now();
+    if (now - (user.lastTap || 0) < 800) {
+      return ctx.reply("🕐 Ka rage gudu — jira ɗan kankanin lokaci ka sake tapping.");
+    }
+
+    user.coins = (user.coins || 0) + 1;      // +1 coin per tap
+    user.xp = (user.xp || 0) + 1;            // +1 xp per tap (adjustable)
+    user.energy = Math.max(0, (user.energy || START_ENERGY) - 1); // reduce energy
+    user.lastTap = now;
+    user.name = username;
+
+    scheduleSave();
+
+    return ctx.reply(`✅ Tap! +1 coin\nCoins: ${user.coins}\nXP: ${user.xp}\nEnergy: ${user.energy}/${ENERGY_MAX}`);
+  } catch (err) {
+    console.error("tap command error:", err);
+    return ctx.reply("An samu matsala yayin processing tap ɗinka. Gwada sake shi.");
+  }
+});
+
+// PROFILE command - shows user stats
+bot.command("profile", async (ctx) => {
+  try {
+    const tgId = ctx.from && (ctx.from.id || ctx.from.user_id) ? (ctx.from.id || ctx.from.user_id) : String(ctx.chat && ctx.chat.id);
+    if (!tgId) return ctx.reply("Ba zan iya gane ID dinka ba.");
+
+    const user = getUser(String(tgId));
+    return ctx.reply(`🧾 Profile:
+Coins: ${user.coins}
+XP: ${user.xp}
+Energy: ${user.energy}/${ENERGY_MAX}`);
+  } catch (err) {
+    console.error("profile command error:", err);
+    return ctx.reply("An samu matsala wajen nuna profile ɗinka.");
+  }
+});
+
+// Energy restore loop
+setInterval(() => {
+  let changed = false;
+  const now = Date.now();
+  for (const id in users) {
+    const u = users[id];
+    if (u.energy < ENERGY_MAX) {
+      u.energy = Math.min(ENERGY_MAX, u.energy + 1);
+      changed = true;
+    }
+  }
+  if (changed) scheduleSave();
+}, ENERGY_RESTORE_RATE_SECONDS * 1000);
+
+// ---- end TAP SYSTEM ----
