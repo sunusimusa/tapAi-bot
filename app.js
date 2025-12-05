@@ -6,7 +6,7 @@ const { Bot } = require("grammy");
 const = require("express");
 
 // Load BOT TOKEN
-const bot = new Bot(process.env.BOT_TOKEN);
+const bot =
 
 // ===============================
 // 🔥 START COMMAND
