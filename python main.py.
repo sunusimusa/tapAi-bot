@@ -1,4 +1,1 @@
-## Deploy
-Use Railway / Heroku — set environment variables from `.env.example` in project settings.
 
-Security: do not commit `.env` with real tokens.
