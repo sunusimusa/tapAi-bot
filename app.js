@@ -6,7 +6,7 @@ const app = express();
 
 // === TOKEN DINKA ANAN ===
 // KA SA naka TOKEN ANAN
-const bot = new Telegraf("YOUR_BOT_TOKEN_HERE");
+const bot = new Telegraf("8535312579:AAEaMIHnkTN0BxDpVqo1mHatbrXIfxX5uc4");
 
 // ========================
 // START COMMAND
