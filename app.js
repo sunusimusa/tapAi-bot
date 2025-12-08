@@ -2,7 +2,7 @@ const { Telegraf, Markup } = require("telegraf");
 require("dotenv").config();
 
 // === TOKEN ===
-// SAKA TOKEN DINKA A NAN ↓↓↓↓
+// 8535312579:AAEaMIHnkTN0BxDpVqo1mHatbrXIfxX5uc4 ↓↓↓↓
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // ==== USER DATA (simple in-memory) ====
