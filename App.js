@@ -5,7 +5,7 @@ const express = require("express");
 const bot = new Bot(process.env.BOT_TOKEN);
 
 // ============ Bot Handlers / Commands ============
-//start/menu/tap/balance : bot.command("start", ctx => ctx.reply("Welcome to Tap Miner"));
+
 //
 //// ===============================
 // TAPAI BOT - MAIN BOT FILE
@@ -16,14 +16,12 @@ const { Bot } = require("grammy");
 // Load bot token from Render environment variable
 const bot = new Bot(process.env.BOT_TOKEN);
 
-// START command
-bot.command("start", async ctx => {
+//command("start", async ctx => {
     await ctx.reply(
         "👋 Welcome to TapAI Bot!\n\nUse /menu to open the game menu.",
         { parse_mode: "Markdown" }
     );
 });
-
 // MENU command
 bot.command("menu", async ctx => {
     await ctx.reply(
@@ -65,7 +63,6 @@ bot.hears("👆 TAP to Earn", async ctx => {
         `💥 Tap registered!\n🪙 Coins: ${users[id].coins}\n⚡ Energy: ${users[id].energy}`
     );
 });
-
 // • tapping
 // • energy
 // • balance
@@ -103,5 +100,5 @@ app.listen(PORT, () => {
   console.log(`✅ Server is listening on port ${PORT}`);
 });
 
-// Start bot polling
+//polling
 bot.start();
