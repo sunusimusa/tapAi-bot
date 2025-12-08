@@ -5,8 +5,7 @@ const express = require("express");
 const bot = new Bot(process.env.BOT_TOKEN);
 
 // ============ Bot Handlers / Commands ============
-// A nan zaka saka duk commands ɗinka da tapping system ɗinka
-// misali: bot.command("start", ctx => ctx.reply("Welcome to Tap Miner"));
+//start/menu/tap/balance : bot.command("start", ctx => ctx.reply("Welcome to Tap Miner"));
 //
 //// ===============================
 // TAPAI BOT - MAIN BOT FILE
@@ -67,8 +66,6 @@ bot.hears("👆 TAP to Earn", async ctx => {
     );
 });
 
-// Start bot
-bot.start(); :
 // • tapping
 // • energy
 // • balance
@@ -89,7 +86,7 @@ bot.start(); :
 
     ctx.reply(`🪙 +1 coin!\n💰 Balance: ${user.balance + 1}\n⚡ Energy: ${user.energy - 1}`);
 });
-// ================================================
+
 
 // Mini express server so Render detects a port
 const app = express();
