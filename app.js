@@ -1,85 +1,103 @@
-const express = require("express");
-const { Telegraf } = require("telegraf");
-const axios = require("axios");
+const { Telegraf, Markup } = require("telegraf");
+require("dotenv").config();
 
-const app = express();
+// === TOKEN ===
+// SAKA TOKEN DINKA A NAN ↓↓↓↓
+const bot = new Telegraf(process.env.BOT_TOKEN);
 
-// === TOKEN DINKA ANAN ===
-// KA SA naka TOKEN ANAN
-const bot = new Telegraf("8535312579:AAEaMIHnkTN0BxDpVqo1mHatbrXIfxX5uc4");
+// ==== USER DATA (simple in-memory) ====
+let users = {};
 
-// ========================
-// START COMMAND
-// ========================
+// ==== MAIN MENU KEYBOARD ====
+const mainMenu = Markup.keyboard([
+  ["💰 Earn Coins", "👥 Referral"],
+  ["💳 Check Balance", "📌 Requirements"]
+]).resize();
+
+// ==== START ====
 bot.start((ctx) => {
-    ctx.reply("👋 Welcome! Tap AI Bot yana nan. Zaka iya amfani da /menu");
+  const uid = ctx.from.id;
+
+  // Register new user
+  if (!users[uid]) {
+    users[uid] = { coins: 0, refs: 0 };
+  }
+
+  ctx.reply(
+    "👋 Welcome to *Tap AI Bot!* Zaka iya amfani da menu.",
+    { parse_mode: "Markdown", ...mainMenu }
+  );
 });
 
-// ========================
-// MENU
-// ========================
+// ==== MENU COMMAND ====
 bot.command("menu", (ctx) => {
-    ctx.reply(
-        "👉 *Main Menu*\n\n" +
-        "1. Earn coins\n" +
-        "2. Invite friends (referral)\n" +
-        "3. Check balance\n" +
-        "4. Subscribe requirements",
-        { parse_mode: "Markdown" }
-    );
+  ctx.reply("👉 Main Menu", mainMenu);
 });
 
-// ========================
-// REFERRAL SYSTEM
-// ========================
-bot.command("invite", (ctx) => {
-    const userId = ctx.from.id;
-    const link = `https://t.me/${ctx.botInfo.username}?start=${userId}`;
+// ==== EARN COINS ====
+bot.hears("💰 Earn Coins", (ctx) => {
+  const uid = ctx.from.id;
 
-    ctx.reply(
-        `🎁 *Referral System*\n\n` +
-        `Share this link to invite friends:\n${link}\n\n` +
-        `You earn +100 coins per invite!`,
-        { parse_mode: "Markdown" }
-    );
+  users[uid].coins += 1;
+
+  ctx.reply(`✅ Ka samu **+1 coin!**\n\n*Total:* ${users[uid].coins} coins`, {
+    parse_mode: "Markdown",
+    ...mainMenu
+  });
 });
 
-// ========================
-// EARN COINS
-// ========================
-bot.command("earn", (ctx) => {
-    ctx.reply("💰 Earn Section coming soon!");
+// ==== REFERRAL ====
+bot.hears("👥 Referral", (ctx) => {
+  const uid = ctx.from.id;
+
+  const link = `https://t.me/${ctx.botInfo.username}?start=${uid}`;
+
+  ctx.reply(
+    `👥 *Invite Friends*\n\nKa tura wannan link:\n${link}\n\n👍 Kana samun 2 coins daga kowanne.`,
+    { parse_mode: "Markdown", ...mainMenu }
+  );
 });
 
-// ========================
-// CHECK BALANCE
-// ========================
-bot.command("balance", (ctx) => {
-    ctx.reply("💳 Your balance feature is coming soon!");
+// ==== CHECK BALANCE ====
+bot.hears("💳 Check Balance", (ctx) => {
+  const uid = ctx.from.id;
+
+  ctx.reply(
+    `💳 *Balance*\n\nCoins: ${users[uid].coins}\nReferrals: ${users[uid].refs}`,
+    { parse_mode: "Markdown", ...mainMenu }
+  );
 });
 
-// ========================
-// SUBSCRIPTION REQUIREMENT
-// ========================
-bot.command("subscribe", (ctx) => {
-    ctx.reply(
-        "📌 *Required Subscriptions:*\n\n" +
-        "🔗 YouTube: https://www.youtube.com/@Sunusicrypto\n" +
-        "🔗 Telegram Channel 1: https://t.me/tele_tap_ai\n" +
-        "🔗 Telegram Channel 2: https://t.me/TeleAIupdates",
-        { parse_mode: "Markdown" }
-    );
+// ==== REQUIREMENTS ====
+bot.hears("📌 Requirements", (ctx) => {
+  ctx.reply(
+    "📌 *Subscribe Requirements*\n\n1. Join channel: https://t.me/tele_tap_ai\n2. Join updates: https://t.me/TeleAIupdates\n3. Subscribe YouTube: https://youtube.com/@Sunusicrypto",
+    { parse_mode: "Markdown", ...mainMenu }
+  );
 });
 
-// ========================
-// EXPRESS (RENDER KEEP ALIVE)
-// ========================
-app.get("/", (req, res) => {
-    res.send("Bot is running!");
+// ==== REFERRAL AUTO CREDIT ====
+bot.start((ctx) => {
+  const uid = ctx.from.id;
+  const ref = ctx.message.text.split(" ")[1];
+
+  if (!users[uid]) {
+    users[uid] = { coins: 0, refs: 0 };
+  }
+
+  if (ref && ref != uid && users[ref]) {
+    users[ref].refs += 1;
+    users[ref].coins += 2;
+  }
+
+  ctx.reply("👋 Welcome! Tura /menu ka fara.", mainMenu);
 });
 
+// ==== FIX FOR RENDER.COM ====
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Server running on port", PORT));
-
-// Start bot
 bot.launch();
+console.log("Server running on port", PORT);
+
+// Graceful stop
+process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));
