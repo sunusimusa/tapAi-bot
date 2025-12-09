@@ -1,7 +1,9 @@
 require("dotenv").config();
 const { Telegraf, Markup } = require("telegraf");
+const axios = require("axios");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
 // Telegram TapAI Bot - Full Working Code (With Referral + Mandatory Subscribe)
 // Developed for Sunusi Musa (SunusiCrypto)
 // Replace 'BOT_TOKEN' with your real bot token
