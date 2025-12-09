@@ -153,5 +153,27 @@ app.post("/webhook", async (req, res) => {
 // ▶️ SERVER LISTENER
 // ==============================
 app.get("/", (req, res) => res.send("Bot is running"));
+async function generateAIResponse(prompt) {
+  try {
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 200,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
 
+    return response.data.choices[0].message.content;
+  } catch (error) {
+    console.error(error.response?.data || error.message);
+    return "❌ AI Error: Ba zan iya amsawa yanzu ba.";
+  }
+}
 app.listen(3000, () => console.log("Bot running on port 3000"));
