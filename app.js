@@ -15,7 +15,7 @@ app.use(express.json());
 // ==============================
 // 🔐 BOT CONFIG
 // ==============================
-const BOT_TOKEN = "YOUR_BOT_TOKEN_HERE";
+const BOT_TOKEN = "8535312579:AAEaMIHnkTN0BxDpVqo1mHatbrXIfxX5uc4";
 const API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
 // ==============================
