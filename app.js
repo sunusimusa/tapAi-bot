@@ -1,139 +1,208 @@
-require("dotenv").config();
-const { Telegraf, Markup } = require("telegraf");
-const express = require("express");
-const axios = require("axios");
+import express from "express";
+import axios from "axios";
+import dotenv from "dotenv";
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+dotenv.config(); // Load .env variables
+
+// =====================
+// CONSTANTS
+// =====================
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+
+const BOT_USERNAME = "Tele_tap_ai_bot"; 
+const YOUTUBE_LINK = "https://youtube.com/@SunusiCrypto";
+
+const REQUIRED_CHANNELS = [
+  "@TeleAIupdates",
+  "@TeleAIupdates" 
+];
+
+// =====================
+// EXPRESS SERVER
+// =====================
 const app = express();
+app.use(express.json());
 
-const REQUIRED_CHANNEL = "@TeleAIupdates"; // CHANNEL NA SUBSCRIPTION
-const BOT_USERNAME = "Tele_tap_ai_bot"; // BOT USERNAME
-const YT_LINK = "https://youtube.com/@SunusiCrypto"; // YOUTUBE LINK
+// =====================
+// SEND MESSAGE FUNCTION
+// =====================
+async function sendMessage(chatId, text, keyboard = null) {
+  const payload = {
+    chat_id: chatId,
+    text,
+    parse_mode: "HTML",
+  };
 
-// =============== 1. CHECK SUBSCRIPTION ==================
-async function checkSubscription(ctx) {
+  if (keyboard) payload.reply_markup = keyboard;
+
+  await axios.post(
+    `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
+    payload
+  );
+}
+
+// ======================
+// CHECK SUBSCRIPTION
+// ======================
+async function isSubscribed(userId) {
   try {
-    const chatMember = await ctx.telegram.getChatMember(
-      REQUIRED_CHANNEL,
-      ctx.from.id
-    );
+    for (let channel of REQUIRED_CHANNELS) {
+      const res = await axios.get(
+        `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember`,
+        {
+          params: {
+            chat_id: channel,
+            user_id: userId,
+          },
+        }
+      );
 
-    if (
-      chatMember.status === "member" ||
-      chatMember.status === "administrator" ||
-      chatMember.status === "creator"
-    ) {
-      return true;
-    } else {
-      return false;
+      const status = res.data.result.status;
+
+      if (
+        status !== "member" &&
+        status !== "administrator" &&
+        status !== "creator"
+      ) {
+        return false;
+      }
     }
-  } catch (e) {
+
+    return true;
+  } catch (err) {
+    console.log("Subscription check error:", err.response?.data);
     return false;
   }
 }
 
-// =============== 2. START COMMAND + REFERRAL ===============
-bot.start(async (ctx) => {
-  const userId = ctx.from.id;
-  const args = ctx.message.text.split(" ");
-
-  let ref = null;
-  if (args[1]) ref = args[1]; // REFERRAL ID
-
-  const isSubbed = await checkSubscription(ctx);
-
-  if (!isSubbed) {
-    return ctx.reply(
-      "⚠️ *Join our update channel first!*",
-      {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard([
-          [Markup.button.url("📢 Join Channel", "https://t.me/TeleAIupdates")],
-          [Markup.button.callback("✔️ I Joined", "joined")]
-        ])
-      }
-    );
-  }
-
-  ctx.reply(
-    `👋 *Welcome to TeleTap AI Bot!*  
-🤖 Powered by SunusiCrypto  
-🔗 Referral: ${ref ? "User " + ref : "None"}`,
-    { parse_mode: "Markdown" }
-  );
-});
-
-// =============== 3. CONFIRM SUBSCRIPTION BUTTON ===============
-bot.action("joined", async (ctx) => {
-  const isSubbed = await checkSubscription(ctx);
-
-  if (!isSubbed) {
-    return ctx.answerCbQuery("❌ You must join first!", { show_alert: true });
-  }
-
-  ctx.reply("🎉 *Thank you for joining!* You can now use the bot.", {
-    parse_mode: "Markdown"
-  });
-});
-
-// =============== 4. AI CHAT SYSTEM ==================
-bot.on("text", async (ctx) => {
-  const isSubbed = await checkSubscription(ctx);
-  if (!isSubbed) {
-    return ctx.reply(
-      "⚠️ You must join our channel to continue!",
-      {
-        ...Markup.inlineKeyboard([
-          [Markup.button.url("📢 Join Channel", "https://t.me/TeleAIupdates")],
-          [Markup.button.callback("✔️ I Joined", "joined")]
-        ])
-      }
-    );
-  }
-
-  const userMessage = ctx.message.text;
-
-  ctx.reply("⏳ AI is thinking…");
-
+// ===============================
+// AI RESPONSE FUNCTION
+// ===============================
+async function generateAIResponse(prompt) {
   try {
-    const response = await axios.post(
+    const res = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: userMessage }],
+        model: "gpt-4o-mini",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 200,
       },
       {
         headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         },
       }
     );
 
-    const aiReply = response.data.choices[0].message.content;
-
-    ctx.reply(aiReply);
-  } catch (e) {
-    ctx.reply("❌ AI Service Error!");
+    return res.data.choices[0].message.content;
+  } catch (error) {
+    console.log(error.response?.data || error.message);
+    return "❌ AI Error: Ba zan iya amsawa yanzu ba.";
   }
-});
+}
 
-// =============== 5. WEBHOOK SYSTEM FOR RENDER ===============
-app.use(express.json());
+// =====================
+// MAIN MENU
+// =====================
+function mainMenu(refLink) {
+  return {
+    inline_keyboard: [
+      [{ text: "🤖 AI Chat", callback_data: "ai_chat" }],
+      [{ text: "👥 Referral", callback_data: "ref" }],
+      [
+        { text: "📢 Join Channel", url: "https://t.me/TeleAIupdates" },
+        { text: "▶️ YouTube", url: YOUTUBE_LINK },
+      ],
+      [{ text: "🔄 Refresh", callback_data: "refresh" }],
+    ],
+  };
+}
 
-app.post(`/webhook/${process.env.BOT_TOKEN}`, (req, res) => {
-  bot.handleUpdate(req.body);
+// ============================
+// HANDLE INCOMING MESSAGES
+// ============================
+app.post(`/webhook`, async (req, res) => {
+  const body = req.body;
+
+  // ----------------------
+  // START COMMAND
+  // ----------------------
+  if (body.message?.text?.startsWith("/start")) {
+    const userId = body.message.from.id;
+
+    const ref = body.message.text.split(" ")[1];
+    const refLink = `https://t.me/${BOT_USERNAME}?start=${userId}`;
+
+    await sendMessage(
+      userId,
+      `👋 <b>Barka da zuwa TeleAI Bot!</b>\n\nReferral Link:\n${refLink}`,
+      mainMenu(refLink)
+    );
+
+    return res.sendStatus(200);
+  }
+
+  // ----------------------
+  // AI CHAT MESSAGE
+  // ----------------------
+  if (body.message?.text && body.message.chat) {
+    const userId = body.message.from.id;
+
+    // Check subscription first
+    if (!(await isSubscribed(userId))) {
+      await sendMessage(
+        userId,
+        "❌ <b>Ba ka gama subscription ba!</b>\nSai ka shiga kai tsaye:\n@TeleAIupdates"
+      );
+      return res.sendStatus(200);
+    }
+
+    const ai = await generateAIResponse(body.message.text);
+    await sendMessage(userId, ai);
+    return res.sendStatus(200);
+  }
+
+  // ----------------------
+  // CALLBACK QUERY
+  // ----------------------
+  if (body.callback_query) {
+    const cq = body.callback_query;
+    const userId = cq.from.id;
+
+    if (cq.data === "refresh") {
+      const refLink = `https://t.me/${BOT_USERNAME}?start=${userId}`;
+      await sendMessage(userId, "🔄 Refreshed!", mainMenu(refLink));
+    }
+
+    if (cq.data === "ai_chat") {
+      await sendMessage(userId, "✍️ Rubuta tambayarka...");
+    }
+
+    if (cq.data === "ref") {
+      const refLink = `https://t.me/${BOT_USERNAME}?start=${userId}`;
+      await sendMessage(
+        userId,
+        `👥 Referral Link:\n${refLink}`
+      );
+    }
+
+    return res.sendStatus(200);
+  }
+
   res.sendStatus(200);
 });
 
+// ======================
+// SERVER LISTENER
+// ======================
+const PORT = process.env.PORT || 3000;
+
 app.get("/", (req, res) => {
-  res.send("TeleTap AI Bot Running...");
+  res.send("TeleAI Bot Running…");
 });
 
-// LISTEN
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Bot running on port ${PORT}`));
-  await bot.telegram.setWebhook(
-    `https://${process.env.RENDER_EXTERNAL_HOSTNAME}/webhook/${process.env.BOT_TOKEN}`
-  );
-});
+app.listen(PORT, () =>
+  console.log(`Bot running on port ${PORT}`)
+);
