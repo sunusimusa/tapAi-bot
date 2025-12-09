@@ -131,8 +131,8 @@ app.get("/", (req, res) => {
 });
 
 // LISTEN
-app.listen(process.env.PORT || 10000, async () => {
-  console.log("Bot running...");
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Bot running on port ${PORT}`));
   await bot.telegram.setWebhook(
     `https://${process.env.RENDER_EXTERNAL_HOSTNAME}/webhook/${process.env.BOT_TOKEN}`
   );
