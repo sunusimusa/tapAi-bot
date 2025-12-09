@@ -1,7 +1,6 @@
 {
   "name": "tapAi-bot",
   "version": "1.0.0",
-
   "dependencies": {
     "telegraf": "^4.16.2",
     "express": "^4.19.2",
