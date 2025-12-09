@@ -1,3 +1,7 @@
+require("dotenv").config();
+const { Telegraf, Markup } = require("telegraf");
+
+const bot = new Telegraf(process.env.BOT_TOKEN);
 // Telegram TapAI Bot - Full Working Code (With Referral + Mandatory Subscribe)
 // Developed for Sunusi Musa (SunusiCrypto)
 // Replace 'BOT_TOKEN' with your real bot token
