@@ -1,166 +1,70 @@
+// ============================
+// FULL TELEGRAM AI BOT SYSTEM
+// Webhook + Subscription + Referral + OpenAI
+// ============================
+
 require("dotenv").config();
-const { Telegraf, Markup } = require("telegraf");
+const express = require("express");
 const axios = require("axios");
-
-const bot = new Telegraf(process.env.BOT_TOKEN);
-const OPENAI_KEY = process.env.OPENAI_API_KEY;
-// Telegram TapAI Bot - Full Working Code (With Referral + Mandatory Subscribe)
-// Developed for Sunusi Musa (SunusiCrypto)
-// Replace 'BOT_TOKEN' with your real bot token
-
-import express from "express";
-import axios from "axios";
 
 const app = express();
 app.use(express.json());
 
-// ==============================
-// 🔐 BOT CONFIG
-// ==============================
-const BOT_TOKEN = "8535312579:AAEaMIHnkTN0BxDpVqo1mHatbrXIfxX5uc4";
+// Telegram keys
+const BOT_TOKEN = process.env.BOT_TOKEN;
 const API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-// ==============================
-// 🔗 MANDATORY SUBSCRIPTION LINKS
-// ==============================
-const CHANNEL_1 = "tele_tap_ai";            // First Telegram channel
-const CHANNEL_2 = "TeleAIupdates";         // Second Telegram channel
-const YOUTUBE_URL = "https://www.youtube.com/@Sunusicrypto";
+// Your bot username
+const BOT_USERNAME = "Tele_tap_ai_bot";
 
-// ==============================
-// 📌 REFERRAL SYSTEM STORE
-// (In real project use MongoDB or MySQL)
-// ==============================
-let users = {}; // { userId: { referredBy: id, balance: 0 } }
+// Required channels + YouTube
+const CHANNEL_1 = "@TeleAIupdates";
+const YOUTUBE_URL = "https://youtube.com/@SunusiCrypto";
 
-// ==============================
-// ▶️ CHECK IF USER IS SUBSCRIBED
-// ==============================
+// ------------------------------
+// SEND MESSAGE FUNCTION
+// ------------------------------
+async function sendMessage(chatId, text, replyMarkup = null) {
+  try {
+    await axios.post(`${API_URL}/sendMessage`, {
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+      reply_markup: replyMarkup,
+    });
+  } catch (err) {
+    console.error("SendMessage Error:", err.response?.data || err);
+  }
+}
+
+// ------------------------------
+// CHECK SUBSCRIPTION
+// ------------------------------
 async function isSubscribed(userId) {
   try {
-    const check1 = await axios.get(`${API_URL}/getChatMember?chat_id=@${CHANNEL_1}&user_id=${userId}`);
-    const check2 = await axios.get(`${API_URL}/getChatMember?chat_id=@${CHANNEL_2}&user_id=${userId}`);
+    const check = await axios.get(
+      `${API_URL}/getChatMember?chat_id=${CHANNEL_1}&user_id=${userId}`
+    );
 
-    const ok1 = ["member", "administrator", "creator"].includes(check1.data.result.status);
-    const ok2 = ["member", "administrator", "creator"].includes(check2.data.result.status);
+    const status = check.data.result.status;
 
-    return ok1 && ok2;
-  } catch (err) {
+    return ["member", "creator", "administrator"].includes(status);
+  } catch (error) {
     return false;
   }
 }
 
-// ==============================
-// ▶️ SEND MESSAGE FUNCTION
-// ==============================
-async function sendMessage(chatId, text, buttons = null) {
-  const body = {
-    chat_id: chatId,
-    text,
-    parse_mode: "HTML"
-  };
-  if (buttons) body.reply_markup = buttons;
-
-  await axios.post(`${API_URL}/sendMessage`, body);
-}
-
-// ==============================
-// ▶️ WEBHOOK HANDLER
-// ==============================
-app.post("/webhook", async (req, res) => {
-  const update = req.body;
-
-  if (!update.message) return res.sendStatus(200);
-
-  const chatId = update.message.chat.id;
-  const userId = update.message.from.id;
-  const text = update.message.text;
-
-  // CREATE USER IF NOT EXIST
-  if (!users[userId]) users[userId] = { balance: 0, referredBy: null };
-
-  // ==============================
-  // 1️⃣ /start + referral
-  // ==============================
-  if (text.startsWith("/start")) {
-    const parts = text.split(" ");
-
-    if (parts.length > 1) {
-      const refId = parts[1];
-
-      if (refId !== userId.toString() && !users[userId].referredBy) {
-        users[userId].referredBy = refId;
-
-        // Give reward to referrer
-        if (!users[refId]) users[refId] = { balance: 0, referredBy: null };
-        users[refId].balance += 50; // reward
-      }
-    }
-
-    // Check if subscribed
-    const sub = await isSubscribed(userId);
-
-    if (!sub) {
-      return sendMessage(chatId,
-        "<b>⚠️ Dole ne ka yi SUBSCRIBE kafin ka cigaba!</b>\n\n➡️ YouTube: " + YOUTUBE_URL +
-        "\n➡️ Telegram Channel 1: @" + CHANNEL_1 +
-        "\n➡️ Telegram Channel 2: @" + CHANNEL_2 +
-        "\n\nIdan ka gama, danna *Check Subscription*",
-        {
-          inline_keyboard: [
-            [{ text: "Check Subscription", callback_data: "check_sub" }]
-          ]
-        }
-      );
-    }
-
-    return sendMessage(chatId,
-      "🎉 <b>Barka da zuwa TeleAI Bot!</b>\n\nYour referral link:\nhttps://t.me/TeleAITapBot?start=" + userId
-    );
-  }
-
-  res.sendStatus(200);
-});
-
-// ==============================
-// ▶️ CALLBACK QUERY (Check Subscription)
-// ==============================
-app.post("/webhook", async (req, res) => {
-  if (!req.body.callback_query) return;
-
-  const cq = req.body.callback_query;
-  const userId = cq.from.id;
-  const chatId = cq.from.id;
-
-  if (cq.data === "check_sub") {
-    const ok = await isSubscribed(userId);
-
-    if (!ok) {
-      return sendMessage(chatId,
-        "❌ <b>Ba ka gama subscribe ba!</b>\nSai kayi Sub zuwa YouTube + Channels dina."
-      );
-    }
-
-    return sendMessage(chatId,
-      "✅ <b>An tabbatar! Ka gama subscription.</b>\nYanzu zaka iya amfani da bot."
-    );
-  }
-
-  res.sendStatus(200);
-});
-
-// ==============================
-// ▶️ SERVER LISTENER
-// ==============================
-app.get("/", (req, res) => res.send("Bot is running"));
-async function generateAIResponse(prompt) {
+// ------------------------------
+// AI CHATGPT RESPONSE
+// ------------------------------
+async function askAI(prompt) {
   try {
-    const response = await axios.post(
+    const res = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       {
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 200,
+        max_tokens: 250,
       },
       {
         headers: {
@@ -170,10 +74,109 @@ async function generateAIResponse(prompt) {
       }
     );
 
-    return response.data.choices[0].message.content;
-  } catch (error) {
-    console.error(error.response?.data || error.message);
-    return "❌ AI Error: Ba zan iya amsawa yanzu ba.";
+    return res.data.choices[0].message.content;
+  } catch (err) {
+    console.error("AI Error:", err.response?.data || err);
+    return "❌ <b>AI Error:</b> Ba zan iya amsawa yanzu ba.";
   }
 }
+
+// ------------------------------
+// WEBHOOK HANDLER
+// ------------------------------
+app.post("/webhook", async (req, res) => {
+  const body = req.body;
+
+  // --------------------------
+  // START WITH REFERRAL
+  // --------------------------
+  if (body.message && body.message.text?.startsWith("/start")) {
+    const chatId = body.message.chat.id;
+    const user = body.message.from;
+
+    let refId = null;
+    const parts = body.message.text.split(" ");
+
+    if (parts.length > 1) refId = parts[1];
+
+    let refText = refId
+      ? `🎁 <b>Wanda ya gayyace ka:</b> <code>${refId}</code>\n\n`
+      : "";
+
+    return sendMessage(
+      chatId,
+      `👋 <b>Barka da zuwa ${user.first_name}!</b>\n\n` +
+        refText +
+        `⚠️ <b>Dole ka kammala waɗannan kafin amfani da bot:</b>\n\n` +
+        `1️⃣ Ka subscribe YouTube:\n${YOUTUBE_URL}\n\n` +
+        `2️⃣ Ka join channel:\n${CHANNEL_1}\n\n` +
+        `✔️ Idan ka gama, danna maɓallin ƙasa:\n`,
+      {
+        inline_keyboard: [
+          [{ text: "✅ Na gama Joining", callback_data: "check_sub" }],
+        ],
+      }
+    );
+  }
+
+  // --------------------------
+  // CALLBACK BUTTONS
+  // --------------------------
+  if (body.callback_query) {
+    const cq = body.callback_query;
+    const chatId = cq.from.id;
+    const userId = cq.from.id;
+
+    if (cq.data === "check_sub") {
+      const ok = await isSubscribed(userId);
+
+      if (!ok) {
+        return sendMessage(
+          chatId,
+          `❌ <b>Ba ka gama joining ba!</b>\n\n` +
+            `👉 Join channel: ${CHANNEL_1}\n\n` +
+            `🔄 Sannan danna "Na gama Joining"`
+        );
+      }
+
+      return sendMessage(
+        chatId,
+        `🎉 <b>An tabbatar ka gama Subscription!</b>\n\n` +
+          `Yanzu zaka iya amfani da AI ChatGPT bot ɗinka.\n\n` +
+          `🧠 Rubuta duk abin da kake so:`
+      );
+    }
+
+    return res.sendStatus(200);
+  }
+
+  // --------------------------
+  // NORMAL USER MESSAGE → AI
+  // --------------------------
+  if (body.message && body.message.text) {
+    const chatId = body.message.chat.id;
+    const text = body.message.text;
+    const userId = body.message.from.id;
+
+    const ok = await isSubscribed(userId);
+    if (!ok) {
+      return sendMessage(
+        chatId,
+        `⚠️ <b>Dole ka yi subscription kafin amfani da AI.</b>\n\n` +
+          `👉 YouTube: ${YOUTUBE_URL}\n` +
+          `👉 Channel: ${CHANNEL_1}`
+      );
+    }
+
+    const reply = await askAI(text);
+    return sendMessage(chatId, reply);
+  }
+
+  res.sendStatus(200);
+});
+
+// ------------------------------
+// SERVER LISTEN
+// ------------------------------
+app.get("/", (req, res) => res.send("Telegram AI Bot Running"));
 app.listen(3000, () => console.log("Bot running on port 3000"));
