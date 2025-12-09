@@ -1,14 +1,10 @@
 {
-  "name": "tapai-bot",
+  "name": "tapAi-bot",
   "version": "1.0.0",
-  "main": "app.js",
-  "scripts": {
-    "start": "node app.js"
-  },
+  "type": "module",
   "dependencies": {
-    "axios": "^1.6.7",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.0",
-    "telegraf": "^4.13.0"
+    "telegraf": "^4.16.2",
+    "express": "^4.19.2",
+    "dotenv": "^16.4.5"
   }
 }
