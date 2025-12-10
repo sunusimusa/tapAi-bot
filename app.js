@@ -1,84 +1,56 @@
 import express from "express";
 import axios from "axios";
 import dotenv from "dotenv";
+dotenv.config();
 
-dotenv.config(); // Load .env variables
-
-// =====================
-// CONSTANTS
-// =====================
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-const BOT_USERNAME = "Tele_tap_ai_bot"; 
-const YOUTUBE_LINK = "https://youtube.com/@SunusiCrypto";
-
-const REQUIRED_CHANNELS = [
-  "@TeleAIupdates",
-  "@TeleAIupdates" 
-];
-
-// =====================
-// EXPRESS SERVER
-// =====================
 const app = express();
 app.use(express.json());
 
-// =====================
-// SEND MESSAGE FUNCTION
-// =====================
-async function sendMessage(chatId, text, keyboard = null) {
-  const payload = {
-    chat_id: chatId,
-    text,
-    parse_mode: "HTML",
-  };
+// =====================================
+// CONFIG
+// =====================================
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const API_URL = `https://api.telegram.org/bot${BOT_TOKEN}`;
+const OPENAI_KEY = process.env.OPENAI_API_KEY;
 
-  if (keyboard) payload.reply_markup = keyboard;
+const CHANNEL_ID = "-1002456619721"; 
+const BOT_USERNAME = "Tele_tap_ai_bot";
+const YOUTUBE_LINK = "https://youtube.com/@SunusiCrypto";
 
-  await axios.post(
-    `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`,
-    payload
-  );
+// =====================================
+// SEND MESSAGE
+// =====================================
+async function sendMessage(chatId, text, reply_markup = null) {
+  try {
+    await axios.post(`${API_URL}/sendMessage`, {
+      chat_id: chatId,
+      text,
+      parse_mode: "HTML",
+      reply_markup,
+    });
+  } catch (err) {
+    console.log("SendMessage Error:", err.response?.data || err.message);
+  }
 }
 
-// ======================
+// =====================================
 // CHECK SUBSCRIPTION
-// ======================
+// =====================================
 async function isSubscribed(userId) {
   try {
-    for (let channel of REQUIRED_CHANNELS) {
-      const res = await axios.get(
-        `https://api.telegram.org/bot${BOT_TOKEN}/getChatMember`,
-        {
-          params: {
-            chat_id: channel,
-            user_id: userId,
-          },
-        }
-      );
-
-      const status = res.data.result.status;
-
-      if (
-        status !== "member" &&
-        status !== "administrator" &&
-        status !== "creator"
-      ) {
-        return false;
-      }
-    }
-
-    return true;
-  } catch (err) {
-    console.log("Subscription check error:", err.response?.data);
+    const res = await axios.get(
+      `${API_URL}/getChatMember?chat_id=${CHANNEL_ID}&user_id=${userId}`
+    );
+    const status = res.data.result.status;
+    return ["member", "administrator", "creator"].includes(status);
+  } catch (error) {
     return false;
   }
 }
 
-// ===============================
-// AI RESPONSE FUNCTION
-// ===============================
+// =====================================
+// AI RESPONSE
+// =====================================
 async function generateAIResponse(prompt) {
   try {
     const res = await axios.post(
@@ -86,11 +58,10 @@ async function generateAIResponse(prompt) {
       {
         model: "gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
-        max_tokens: 200,
       },
       {
         headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          Authorization: `Bearer ${OPENAI_KEY}`,
           "Content-Type": "application/json",
         },
       }
@@ -98,14 +69,13 @@ async function generateAIResponse(prompt) {
 
     return res.data.choices[0].message.content;
   } catch (error) {
-    console.log(error.response?.data || error.message);
     return "❌ AI Error: Ba zan iya amsawa yanzu ba.";
   }
 }
 
-// =====================
+// =====================================
 // MAIN MENU
-// =====================
+// =====================================
 function mainMenu(refLink) {
   return {
     inline_keyboard: [
@@ -120,19 +90,17 @@ function mainMenu(refLink) {
   };
 }
 
-// ============================
-// HANDLE INCOMING MESSAGES
-// ============================
-app.post(`/webhook`, async (req, res) => {
+// =====================================
+// WEBHOOK
+// =====================================
+app.post("/webhook", async (req, res) => {
   const body = req.body;
 
-  // ----------------------
   // START COMMAND
-  // ----------------------
   if (body.message?.text?.startsWith("/start")) {
     const userId = body.message.from.id;
-
     const ref = body.message.text.split(" ")[1];
+
     const refLink = `https://t.me/${BOT_USERNAME}?start=${userId}`;
 
     await sendMessage(
@@ -144,17 +112,15 @@ app.post(`/webhook`, async (req, res) => {
     return res.sendStatus(200);
   }
 
-  // ----------------------
-  // AI CHAT MESSAGE
-  // ----------------------
-  if (body.message?.text && body.message.chat) {
+  // NORMAL MESSAGE = AI CHAT
+  if (body.message?.text) {
     const userId = body.message.from.id;
 
-    // Check subscription first
+    // Check subscription
     if (!(await isSubscribed(userId))) {
       await sendMessage(
         userId,
-        "❌ <b>Ba ka gama subscription ba!</b>\nSai ka shiga kai tsaye:\n@TeleAIupdates"
+        "❌ <b>Ba ka gama subscription ba!</b>\nSai ka shiga:\n@TeleAIupdates"
       );
       return res.sendStatus(200);
     }
@@ -164,28 +130,22 @@ app.post(`/webhook`, async (req, res) => {
     return res.sendStatus(200);
   }
 
-  // ----------------------
-  // CALLBACK QUERY
-  // ----------------------
+  // CALLBACKS
   if (body.callback_query) {
-    const cq = body.callback_query;
-    const userId = cq.from.id;
+    const userId = body.callback_query.from.id;
 
-    if (cq.data === "refresh") {
+    if (body.callback_query.data === "refresh") {
       const refLink = `https://t.me/${BOT_USERNAME}?start=${userId}`;
       await sendMessage(userId, "🔄 Refreshed!", mainMenu(refLink));
     }
 
-    if (cq.data === "ai_chat") {
-      await sendMessage(userId, "✍️ Rubuta tambayarka...");
+    if (body.callback_query.data === "ai_chat") {
+      await sendMessage(userId, "✍️ Rubuta tambayarka…");
     }
 
-    if (cq.data === "ref") {
+    if (body.callback_query.data === "ref") {
       const refLink = `https://t.me/${BOT_USERNAME}?start=${userId}`;
-      await sendMessage(
-        userId,
-        `👥 Referral Link:\n${refLink}`
-      );
+      await sendMessage(userId, `👥 Referral Link:\n${refLink}`);
     }
 
     return res.sendStatus(200);
@@ -194,15 +154,13 @@ app.post(`/webhook`, async (req, res) => {
   res.sendStatus(200);
 });
 
-// ======================
-// SERVER LISTENER
-// ======================
-const PORT = process.env.PORT || 3000;
+// =====================================
+// SERVER (IMPORTANT – PORT 10000)
+// =====================================
+const PORT = process.env.PORT || 10000;
 
 app.get("/", (req, res) => {
   res.send("TeleAI Bot Running…");
 });
 
-app.listen(PORT, () =>
-  console.log(`Bot running on port ${PORT}`)
-);
+app.listen(PORT, () => console.log(`Bot running on port ${PORT}`));
