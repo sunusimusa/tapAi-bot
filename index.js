@@ -138,7 +138,40 @@ bot.on("text", async (ctx) => {
     ctx.reply("❌ Error from OpenAI API.");
   }
 });
+// AI CHAT SYSTEM (Tele Tech AI Bot)
+bot.on("text", async (ctx) => {
+  const userId = ctx.from.id;
 
+  // Check premium
+  if (!db.users[userId]?.premium) {
+    return ctx.reply(
+      "❌ Ba ka da Premium.\n\nYi amfani da /premium domin samun damar amfani da *Tele Tech AI Bot*."
+    );
+  }
+
+  ctx.sendChatAction("typing");
+
+  try {
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Kai ne Tele Tech AI Bot, ƙwararren AI da aka gina ta amfani da OpenAI domin taimaka wa masu amfani cikin sauri da tsari. Ka kasance mai ladabi, zaka amsa duk wata tambaya cikin inganci."
+        },
+        { role: "user", content: ctx.message.text },
+      ],
+    });
+
+    const reply = completion.choices[0].message.content;
+
+    ctx.reply(reply);
+  } catch (error) {
+    console.error(error);
+    ctx.reply("❌ Akwai matsala wajen OpenAI API.");
+  }
+});
 // RUN BOT
 bot.launch();
 console.log("BOT IS RUNNING...");
