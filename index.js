@@ -1,3 +1,4 @@
+const PORT = process.env.PORT || 10000;   // KA BAR WANNAN DAYA
 import express from 'express';
 import TelegramBot from 'node-telegram-bot-api';
 
