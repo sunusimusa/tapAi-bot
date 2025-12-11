@@ -1,4 +1,3 @@
-const PORT = process.env.PORT || 10000;   // KA BAR WANNAN DAYA
 import express from 'express';
 import TelegramBot from 'node-telegram-bot-api';
 
@@ -29,5 +28,5 @@ app.post(`/webhook/${TOKEN}`, (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("Bot running on port " + PORT);
+  console.log("using Bot running on port " + PORT);
 });
