@@ -1,4 +1,4 @@
-import express from 'express';
+
 import TelegramBot from 'node-telegram-bot-api';
 
 const TOKEN = "7740379015:AAHMJdgsvKN-nz1QRHK9Q2eCds-u92BnJbY";
@@ -28,5 +28,5 @@ app.post(`/webhook/${TOKEN}`, (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("using Bot running on port " + PORT);
+  console.log("Bot running on port " + PORT);
 });
