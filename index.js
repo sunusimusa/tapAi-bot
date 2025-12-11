@@ -1,28 +1,32 @@
-const express = require("express");
-const bodyParser = require("body-parser");
-const TelegramBot = require("node-telegram-bot-api");
+import express from 'express';
+import TelegramBot from 'node-telegram-bot-api';
 
-const TOKEN = "<7740379015:AAHMJdgsvKN-nz1QRHK9Q2eCds-u92BnJbY>"; 
-const bot = new TelegramBot(TOKEN);
+const TOKEN = "7740379015:AAHMJdgsvKN-nz1QRHK9Q2eCds-u92BnJbY";
+const WEBHOOK_URL = "https://tapai-bot.onrender.com/webhook";
+const PORT = process.env.PORT || 3000;   // <--- KA BARI GUDA ƊAYA KAWAI
 
-// EXPRESS SERVER
 const app = express();
-app.use(bodyParser.json());
+app.use(express.json());
 
-// ROOT – just to confirm server is running
-app.get("/", (req, res) => {
-  res.send("Bot is running...");
+const bot = new TelegramBot(TOKEN, { webHook: true });
+bot.setWebHook(`${WEBHOOK_URL}/${TOKEN}`);
+
+bot.on("message", async (msg) => {
+  const chatId = msg.chat.id;
+  const text = msg.text?.trim() || "";
+
+  if (text === "/start") {
+    await bot.sendMessage(chatId, "Welcome! Bot is working fine 😊");
+  } else {
+    await bot.sendMessage(chatId, "Bot received your message: " + text);
+  }
 });
 
-// WEBHOOK ENDPOINT
-app.post("/webhook", (req, res) => {
-  console.log("Incoming update:", JSON.stringify(req.body, null, 2));
-
-  bot.processUpdate(req.body); 
+app.post(`/webhook/${TOKEN}`, (req, res) => {
+  bot.processUpdate(req.body);
   res.sendStatus(200);
 });
 
-// LISTEN
-app.listen(3000, () => {
-  console.log("Server listening on PORT 3000");
+app.listen(PORT, () => {
+  console.log("Bot running on port " + PORT);
 });
