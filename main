@@ -1,1 +1,0 @@
-/opt/render/project/src/package.json
